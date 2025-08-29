@@ -1,11 +1,7 @@
 import VideoCall from "./components/VideoCall";
 
 function App() {
-  return (
-    <>
-      <VideoCall />
-    </>
-  );
+  return <VideoCall />;
 }
 
 export default App;
