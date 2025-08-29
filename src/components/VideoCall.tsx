@@ -25,49 +25,90 @@ const VideoCall = () => {
     ],
   };
 
-  const createPeerConnection = async (partnerId: string, socket: Socket) => {
-    console.log("Creating peer ", partnerId, socket);
-    const peer = new RTCPeerConnection(configuration);
+  const createPeerConnection = async (
+    partnerId: string,
+    socket: Socket,
+    isOfferer: boolean
+  ) => {
+    try {
+      console.log(
+        "Creating peer connection as",
+        isOfferer ? "offerer" : "answerer"
+      );
 
-    peerConnectionRef.current = peer;
-
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((track) => {
-        //@ts-ignore
-        peer.addTrack(track, localStreamRef.current);
-      });
-    }
-
-    peer.ontrack = (event) => {
-      console.log("Received remote stream");
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = event.streams[0];
+      // Close existing connection if any
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close();
       }
-    };
 
-    peer.onicecandidate = (event) => {
-      if (event.candidate) {
-        console.log("Sending ICE candidate");
+      const peer = new RTCPeerConnection(configuration);
+
+      peerConnectionRef.current = peer;
+
+      // Monitor connection state changes
+      peer.onconnectionstatechange = () => {
+        console.log("Connection state changed:", peer.connectionState);
+        if (peer.connectionState === "connected") {
+          console.log("WebRTC connection established!");
+        } else if (peer.connectionState === "failed") {
+          console.log("WebRTC connection failed");
+        }
+
+        //RECONNECTION
+        // setTimeout(() => {
+        //   if (partnerId && socket) {
+        //     createPeerConnection(partnerId, socket, isOfferer);
+        //   }
+        // }, 2000);
+      };
+
+      // Monitor ICE connection state
+      peer.oniceconnectionstatechange = () => {
+        console.log("ICE connection state:", peer.iceConnectionState);
+      };
+
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((track) => {
+          //@ts-ignore
+          peer.addTrack(track, localStreamRef.current);
+        });
+      }
+
+      peer.ontrack = (event) => {
+        console.log("Received remote stream", event.streams[0]);
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = event.streams[0];
+        }
+      };
+
+      peer.onicecandidate = (event) => {
+        if (event.candidate) {
+          console.log("Sending ICE candidate to", partnerId);
+
+          if (socket) {
+            socket.emit("ice-candidate", {
+              target: partnerId,
+              candidate: event.candidate,
+            });
+          }
+        }
+      };
+
+      if (isOfferer) {
+        console.log("Creating offer as initiator");
+        const offer = await peer.createOffer();
+        await peer.setLocalDescription(offer);
 
         if (socket) {
-          socket.emit("ice-candidate", {
+          console.log("Sending offer to", partnerId);
+          socket.emit("offer", {
             target: partnerId,
-            candidate: event.candidate,
+            offer: offer,
           });
         }
       }
-    };
-
-    // Create and send offer to partner
-    const offer = await peer.createOffer();
-    await peer.setLocalDescription(offer);
-
-    if (socket) {
-      console.log("Sending offer", partnerId);
-      socket.emit("offer", {
-        senderId: partnerId,
-        offer: offer,
-      });
+    } catch (error) {
+      console.log("ERROR ", error);
     }
   };
 
@@ -75,6 +116,25 @@ const VideoCall = () => {
     console.log("Handling offer", sender, offer);
     const peerConnection = new RTCPeerConnection(configuration);
     peerConnectionRef.current = peerConnection;
+
+    // Monitor connection state changes
+    peerConnection.onconnectionstatechange = () => {
+      console.log(
+        "Answer peer connection state changed:",
+        peerConnection.connectionState
+      );
+      if (peerConnection.connectionState === "connected") {
+        console.log("WebRTC connection established in answer handler!");
+      }
+    };
+
+    // Monitor ICE connection state
+    peerConnection.oniceconnectionstatechange = () => {
+      console.log(
+        "Answer peer ICE connection state:",
+        peerConnection.iceConnectionState
+      );
+    };
 
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => {
@@ -84,6 +144,7 @@ const VideoCall = () => {
     }
 
     peerConnection.ontrack = (event) => {
+      console.log("Received remote stream in answer handler", event.streams[0]);
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = event.streams[0];
       }
@@ -91,6 +152,7 @@ const VideoCall = () => {
 
     peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
+        console.log("Sending ICE candidate to", sender);
         if (socket) {
           socket.emit("ice-candidate", {
             target: sender,
@@ -100,26 +162,42 @@ const VideoCall = () => {
       }
     };
 
-    await peerConnection.setRemoteDescription(offer);
-    const answer = await peerConnection.createAnswer();
-    await peerConnection.setLocalDescription(answer);
+    try {
+      await peerConnection.setRemoteDescription(offer);
+      const answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
 
-    socket.emit("answer", {
-      target: sender,
-      answer: answer,
-    });
-  };
-
-  const handleAnswer = async (answer: RTCSessionDescriptionInit) => {
-    if (peerConnectionRef.current) {
-      await peerConnectionRef.current.setRemoteDescription(answer);
+      console.log("Sending answer to", sender);
+      socket.emit("answer", {
+        target: sender,
+        answer: answer,
+      });
+    } catch (error) {
+      console.error("Error handling offer:", error);
     }
   };
 
-  const handleIceCandidate = async (candidate: RTCLocalIceCandidateInit) => {
+  const handleAnswer = async (answer: RTCSessionDescriptionInit) => {
+    console.log("Received answer", answer);
     if (peerConnectionRef.current) {
-      await peerConnectionRef.current.addIceCandidate(candidate);
-      console.log("Added ice");
+      try {
+        await peerConnectionRef.current.setRemoteDescription(answer);
+        console.log("Set remote description successfully");
+      } catch (error) {
+        console.error("Error setting remote description:", error);
+      }
+    }
+  };
+
+  const handleIceCandidate = async (candidate: RTCIceCandidate) => {
+    console.log("Received ICE candidate", candidate);
+    if (peerConnectionRef.current) {
+      try {
+        await peerConnectionRef.current.addIceCandidate(candidate);
+        console.log("Added ICE candidate successfully");
+      } catch (error) {
+        console.error("Error adding ICE candidate:", error);
+      }
     }
   };
 
@@ -145,6 +223,9 @@ const VideoCall = () => {
       socket.emit("skip");
       cleanupPeerConnection();
       setStatus("searching");
+
+      // Automatically rejoin queue after skipping
+      socket.emit("join-queue");
     }
   };
 
@@ -157,7 +238,7 @@ const VideoCall = () => {
   const getStatusText = () => {
     switch (status) {
       case "connected":
-        return "Connected to server";
+        return "Connected to server you are ready!!";
       case "searching":
         return "Looking for someone to chat with...";
       case "waiting":
@@ -196,24 +277,26 @@ const VideoCall = () => {
       console.log("Waiting for a partner...");
     });
 
-    newSocket.on("matched", async ({ roomId, partnerId }) => {
+    newSocket.on("matched", async ({ roomId, partnerId, isInitiator }) => {
       setStatus("matched");
-      console.log("MATCHED", partnerId);
+      console.log("MATCHED with partner:", partnerId, "in room:", roomId);
       setRoomId(roomId);
       setPartnerId(partnerId);
-      await createPeerConnection(partnerId, newSocket);
+      await createPeerConnection(partnerId, newSocket, isInitiator);
     });
 
     newSocket.on("offer", async ({ offer, senderId }) => {
-      console.log("Received offer-> ", senderId, offer);
+      console.log("Received offer from:", senderId, "offer:", offer);
       await handleOffer(offer, senderId, newSocket);
     });
 
     newSocket.on("answer", async ({ answer }) => {
+      console.log("Received answer:", answer);
       await handleAnswer(answer);
     });
 
     newSocket.on("ice-candidate", async ({ candidate }) => {
+      console.log("Received ICE candidate:");
       await handleIceCandidate(candidate);
     });
 
@@ -233,74 +316,61 @@ const VideoCall = () => {
   }, []);
 
   return (
-    <div style={{ padding: "20px", textAlign: "center" }}>
-      <h1>Random Video Chat</h1>
-
-      <div style={{ marginBottom: "20px" }}>
-        <p>
-          <strong>Status:</strong> {getStatusText()}
-        </p>
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          gap: "20px",
-          marginBottom: "20px",
-        }}
-      >
-        <div>
-          <h3>You</h3>
-          <video
-            ref={localVideoRef}
-            autoPlay
-            muted
-            playsInline
-            style={{ width: "300px", height: "200px", backgroundColor: "#000" }}
-          />
-        </div>
-
-        <div>
-          <h3>Partner</h3>
-          <video
-            ref={remoteVideoRef}
-            autoPlay
-            playsInline
-            style={{ width: "300px", height: "200px", backgroundColor: "#000" }}
-          />
+    <section className="">
+      <div className="">
+        <div className="text-4xl text-center my-5 py-[30px]">
+          Strangers United
         </div>
       </div>
 
-      <div style={{ display: "flex", justifyContent: "center", gap: "10px" }}>
-        {status === "connected" && (
-          <button onClick={handleStart} style={buttonStyle}>
-            Start Chat
-          </button>
-        )}
-
-        {(status === "matched" || partnerId) && (
-          <button
-            onClick={handleSkip}
-            style={{ ...buttonStyle, backgroundColor: "#ff4444" }}
-          >
-            Skip / Next
-          </button>
-        )}
+      <div className="my-2 text-center">
+        <strong>Status:</strong> {getStatusText()}
       </div>
-    </div>
+
+      <div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-auto md:h-[550px] ">
+          <div>
+            <div className="font-serif text-3xl">You</div>
+            <video
+              ref={localVideoRef}
+              autoPlay
+              muted
+              playsInline
+              className="w-full h-64 md:h-[500px] object-cover rounded  bg-gray-400"
+            />
+          </div>
+
+          <div>
+            <div className="font-serif text-3xl">Stranger</div>
+            <video
+              ref={remoteVideoRef}
+              autoPlay
+              playsInline
+              className="w-full h-64 md:h-[500px]  object-cover rounded bg-gray-400"
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col md:flex-row justify-center  gap-4 mt-5 w-full md:w-auto">
+          {status === "connected" && (
+            <button
+              className="bg-green-500 p-4 rounded-2xl w-full md:w-auto"
+              onClick={handleStart}>
+              Start Chat
+            </button>
+          )}
+
+          {status === "matched" && partnerId && (
+            <button
+              className="bg-red-500 p-4 rounded-2xl w-full md:w-auto"
+              onClick={handleSkip}>
+              Skip
+            </button>
+          )}
+        </div>
+      </div>
+    </section>
   );
-};
-
-const buttonStyle = {
-  padding: "10px 20px",
-  fontSize: "16px",
-  backgroundColor: "#4CAF50",
-  color: "white",
-  border: "none",
-  borderRadius: "4px",
-  cursor: "pointer",
-  margin: "5px",
 };
 
 export default VideoCall;
