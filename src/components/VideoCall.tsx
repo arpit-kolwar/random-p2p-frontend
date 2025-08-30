@@ -6,7 +6,7 @@ const VideoCall = () => {
   // const [isConnected, setIsConnected] = useState(false);
  // const [status, setStatus] = useState("disconnected");
 
-  const [roomId, setRoomId] = useState(null);
+  // const [roomId, setRoomId] = useState(null);
   const [partnerId, setPartnerId] = useState(null);
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
@@ -209,7 +209,7 @@ const VideoCall = () => {
     if (remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = null;
     }
-    setRoomId(null);
+    // setRoomId(null);
     setPartnerId(null);
   };
 
