@@ -281,7 +281,7 @@ const VideoCall = () => {
     newSocket.on("matched", async ({ roomId, partnerId, isInitiator }) => {
       setStatus("matched");
       console.log("MATCHED with partner:", partnerId, "in room:", roomId);
-      setRoomId(roomId);
+      // setRoomId(roomId);
       setPartnerId(partnerId);
       await createPeerConnection(partnerId, newSocket, isInitiator);
     });
