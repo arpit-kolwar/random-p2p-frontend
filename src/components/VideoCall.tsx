@@ -1,10 +1,10 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import io, { Socket } from "socket.io-client";
 
 const VideoCall = () => {
   const [socket, setSocket] = useState<Socket | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
-  const [status, setStatus] = useState("disconnected");
+  // const [isConnected, setIsConnected] = useState(false);
+ // const [status, setStatus] = useState("disconnected");
 
   const [roomId, setRoomId] = useState(null);
   const [partnerId, setPartnerId] = useState(null);
@@ -214,7 +214,7 @@ const VideoCall = () => {
   };
 
   const findNewPartner = (socket: Socket) => {
-    setStatus("searching");
+   // setStatus("searching");
     socket.emit("join-queue");
   };
 
@@ -267,7 +267,7 @@ const VideoCall = () => {
       .catch((err) => console.error("Error accessing media devices:", err));
 
     newSocket.on("connect", () => {
-      setIsConnected(true);
+      // setIsConnected(true);
       setStatus("connected");
       console.log("Connected to server", newSocket.id);
     });
