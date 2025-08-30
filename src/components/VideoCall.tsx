@@ -252,7 +252,7 @@ const VideoCall = () => {
     }
   };
   useEffect(() => {
-    const newSocket = io("http://localhost:5000");
+    const newSocket = io("http://52.207.228.135:5000");
     setSocket(newSocket);
 
     // Get user's camera and microphone
