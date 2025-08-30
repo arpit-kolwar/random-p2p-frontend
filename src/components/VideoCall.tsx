@@ -7,7 +7,7 @@ const VideoCall = () => {
   // const [isConnected, setIsConnected] = useState(false);
   const [status, setStatus] = useState("disconnected");
 
-   const [roomId, setRoomId] = useState(null);
+   // const [roomId, setRoomId] = useState(null);
   const [partnerId, setPartnerId] = useState(null);
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
