@@ -253,10 +253,10 @@ const VideoCall = () => {
     }
   };
   useEffect(() => {
-    // const newSocket = io("http://52.207.228.135");
-    const newSocket = io("/", {
-  transports: ["websocket"],
-});
+    const newSocket = io("http://52.207.228.135");
+//     const newSocket = io("/", {
+//   transports: ["websocket"],
+// });
     setSocket(newSocket);
 
     // Get user's camera and microphone
