@@ -1,12 +1,12 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import io, { Socket } from "socket.io-client";
 
 const VideoCall = () => {
   const [socket, setSocket] = useState<Socket | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
+  // const [isConnected, setIsConnected] = useState(false);
   const [status, setStatus] = useState("disconnected");
 
-  const [roomId, setRoomId] = useState(null);
+  // const [roomId, setRoomId] = useState(null);
   const [partnerId, setPartnerId] = useState(null);
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
@@ -209,7 +209,7 @@ const VideoCall = () => {
     if (remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = null;
     }
-    setRoomId(null);
+    // setRoomId(null);
     setPartnerId(null);
   };
 
@@ -252,7 +252,7 @@ const VideoCall = () => {
     }
   };
   useEffect(() => {
-    const newSocket = io("http://localhost:5000");
+    const newSocket = io("http://52.207.228.135:5000");
     setSocket(newSocket);
 
     // Get user's camera and microphone
@@ -267,7 +267,7 @@ const VideoCall = () => {
       .catch((err) => console.error("Error accessing media devices:", err));
 
     newSocket.on("connect", () => {
-      setIsConnected(true);
+      // setIsConnected(true);
       setStatus("connected");
       console.log("Connected to server", newSocket.id);
     });
@@ -280,7 +280,7 @@ const VideoCall = () => {
     newSocket.on("matched", async ({ roomId, partnerId, isInitiator }) => {
       setStatus("matched");
       console.log("MATCHED with partner:", partnerId, "in room:", roomId);
-      setRoomId(roomId);
+      // setRoomId(roomId);
       setPartnerId(partnerId);
       await createPeerConnection(partnerId, newSocket, isInitiator);
     });
@@ -355,7 +355,8 @@ const VideoCall = () => {
           {status === "connected" && (
             <button
               className="bg-green-500 p-4 rounded-2xl w-full md:w-auto"
-              onClick={handleStart}>
+              onClick={handleStart}
+            >
               Start Chat
             </button>
           )}
@@ -363,7 +364,8 @@ const VideoCall = () => {
           {status === "matched" && partnerId && (
             <button
               className="bg-red-500 p-4 rounded-2xl w-full md:w-auto"
-              onClick={handleSkip}>
+              onClick={handleSkip}
+            >
               Skip
             </button>
           )}
