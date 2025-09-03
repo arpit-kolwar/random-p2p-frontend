@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import io, { Socket } from "socket.io-client";
 
 const VideoCall = () => {
@@ -6,7 +6,7 @@ const VideoCall = () => {
   // const [isConnected, setIsConnected] = useState(false);
   const [status, setStatus] = useState("disconnected");
 
-  // const [roomId, setRoomId] = useState(null);
+  const [roomId, setRoomId] = useState(null);
   const [partnerId, setPartnerId] = useState(null);
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
@@ -214,7 +214,7 @@ const VideoCall = () => {
   };
 
   const findNewPartner = (socket: Socket) => {
-    setStatus("searching");
+    // setStatus("searching");
     socket.emit("join-queue");
   };
 
@@ -252,7 +252,7 @@ const VideoCall = () => {
     }
   };
   useEffect(() => {
-    const newSocket = io("http://52.207.228.135:5000");
+    const newSocket = io("http://localhost:5000");
     setSocket(newSocket);
 
     // Get user's camera and microphone
